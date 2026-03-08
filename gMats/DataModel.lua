@@ -25,7 +25,11 @@ function DM:Init()
             bagHighlightsEnabled = true,
         }
     end
+    if not gMatsDB.removedIDs then
+        gMatsDB.removedIDs = {}
+    end
     self:GarbageCollectTombstones()
+    self:GarbageCollectRemovedIDs()
     self:RebuildIndex()
 end
 
@@ -131,6 +135,7 @@ function DM:RemoveRequest(requestID)
         self:UnindexRequest(req)
         req.removed = true
         req.removedAt = time()
+        gMatsDB.removedIDs[requestID] = req.removedAt
     end
 end
 
@@ -144,6 +149,7 @@ function DM:MergeRequest(req)
             self:UnindexRequest(existing)
         end
         gMatsDB.board[req.requestID] = req
+        gMatsDB.removedIDs[req.requestID] = req.removedAt or time()
         return
     end
 
@@ -159,6 +165,10 @@ function DM:MergeRequest(req)
             end
         end
     else
+        -- Check removal digest before accepting (prevents resurrection after tombstone GC)
+        if gMatsDB.removedIDs and gMatsDB.removedIDs[req.requestID] then
+            return
+        end
         gMatsDB.board[req.requestID] = req
         if not req.fulfilled then
             self:IndexRequest(req)
@@ -240,13 +250,42 @@ function DM:LookupItem(itemID)
     return self.itemIndex[itemID]
 end
 
--- Garbage-collect tombstones older than 7 days
+-- Garbage-collect tombstones older than 7 days (migrate to removal digest first)
 function DM:GarbageCollectTombstones()
     local cutoff = time() - (7 * 24 * 60 * 60)
+    if not gMatsDB.removedIDs then gMatsDB.removedIDs = {} end
     for reqID, req in pairs(gMatsDB.board) do
         if req.removed and req.removedAt and req.removedAt < cutoff then
+            gMatsDB.removedIDs[reqID] = req.removedAt
             gMatsDB.board[reqID] = nil
         end
+    end
+end
+
+-- Garbage-collect removal digest when it exceeds the cap (keep newest entries)
+local REMOVED_IDS_CAP = 1000
+
+function DM:GarbageCollectRemovedIDs()
+    if not gMatsDB.removedIDs then return end
+
+    -- Count entries
+    local count = 0
+    for _ in pairs(gMatsDB.removedIDs) do
+        count = count + 1
+    end
+    if count <= REMOVED_IDS_CAP then return end
+
+    -- Collect into sortable list
+    local entries = {}
+    for reqID, removedAt in pairs(gMatsDB.removedIDs) do
+        entries[#entries + 1] = { id = reqID, at = removedAt }
+    end
+    table.sort(entries, function(a, b) return a.at < b.at end)
+
+    -- Evict oldest until at cap
+    local toRemove = count - REMOVED_IDS_CAP
+    for i = 1, toRemove do
+        gMatsDB.removedIDs[entries[i].id] = nil
     end
 end
 

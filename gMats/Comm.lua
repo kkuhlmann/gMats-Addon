@@ -322,6 +322,7 @@ function Comm:HandleRemove(parts, sender)
             requestType = "material",
             items = {},
         }
+        gMatsDB.removedIDs[requestID] = removedAt
     end
 end
 
