@@ -1,0 +1,21 @@
+## Interface: 30300
+## Title: gMats - Guild Bounty Board
+## Notes: Share material needs and crafting requests with your guild
+## Author: gMats Team
+## Version: 1.0.0
+## SavedVariables: gMatsDB
+## DefaultState: enabled
+
+Util.lua
+ItemDB.lua
+DataModel.lua
+Comm.lua
+Tooltips.lua
+BagHighlight.lua
+UI\MinimapButton.lua
+UI\MainWindow.lua
+UI\ItemSearch.lua
+UI\BrowseBoard.lua
+UI\MailIntegration.lua
+UI\PostRequestForm.lua
+Core.lua
