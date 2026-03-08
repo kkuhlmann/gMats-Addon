@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from TOC
+        id: version
+        run: |
+          version=$(grep -oP '## Version: \K.*' gMats/gMats.toc | tr -d '[:space:]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Zip gMats directory
+        run: zip -r gMats-${{ steps.version.outputs.version }}.zip gMats/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: gMats ${{ steps.version.outputs.version }}
+          files: gMats-${{ steps.version.outputs.version }}.zip
+          generate_release_notes: true
