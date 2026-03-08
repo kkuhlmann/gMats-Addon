@@ -55,7 +55,7 @@ Board state syncs automatically across all online guild members. On login, gMats
 
 ## Installation
 
-1. Download or clone this repository
+1. Download a release or clone this repository
 2. Copy the inner `gMats/` folder (the one containing `gMats.toc`) into your WoW client's addon directory:
    ```
    <WoW Install>/Interface/AddOns/gMats/
