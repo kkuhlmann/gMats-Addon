@@ -17,9 +17,12 @@ local throttleFrame = nil
 
 -- Chunk reassembly: sender -> opcode -> { parts={}, total=0 }
 local chunkBuffers = {}
+local syncReceivedCount = 0
 
 function Comm:Init()
-    RegisterAddonMessagePrefix(ADDON_PREFIX)
+    if RegisterAddonMessagePrefix then
+        RegisterAddonMessagePrefix(ADDON_PREFIX)
+    end
     self:StartThrottle()
 end
 
@@ -242,6 +245,15 @@ function Comm:HandleMessage(message, sender)
     elseif opcode == "SYNCDATA" then
         self:HandleSyncData(parts, sender)
     elseif opcode == "SYNCEND" then
+        if syncReceivedCount > 0 then
+            SC:Print("Board sync complete: received " .. syncReceivedCount .. " entries from " .. sender .. ".")
+        else
+            SC:Print("Board sync complete from " .. sender .. ". No new entries.")
+        end
+        syncReceivedCount = 0
+        if SC.UI and SC.UI.BrowseBoard then
+            SC.UI.BrowseBoard:Refresh()
+        end
         if SC.BagHighlight then SC.BagHighlight:UpdateAllVisibleBags() end
     end
 end
@@ -414,6 +426,7 @@ function Comm:HandleSyncData(parts, sender)
 
     if req then
         SC.DataModel:MergeRequest(req)
+        syncReceivedCount = syncReceivedCount + 1
     end
 end
 
