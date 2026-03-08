@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, master]
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -20,10 +23,22 @@ jobs:
       - name: Zip gMats directory
         run: zip -r gMats-${{ steps.version.outputs.version }}.zip gMats/
 
-      - name: Create Release
+      - name: Create versioned release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: gMats ${{ steps.version.outputs.version }}
           files: gMats-${{ steps.version.outputs.version }}.zip
           generate_release_notes: true
+
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: gMats Latest
+          files: gMats-${{ steps.version.outputs.version }}.zip
+          body: |
+            Latest build of gMats (v${{ steps.version.outputs.version }}).
+
+            This release is automatically updated on every push to main.
+          make_latest: true
