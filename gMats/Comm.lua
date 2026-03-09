@@ -246,7 +246,7 @@ function Comm:HandleMessage(message, sender)
         self:HandleSyncData(parts, sender)
     elseif opcode == "SYNCEND" then
         if syncReceivedCount > 0 then
-            SC:Print("Board sync complete: received " .. syncReceivedCount .. " entries from " .. sender .. ".")
+            SC:Print("Board sync complete with " .. sender .. ".")
         else
             SC:Print("Board sync complete from " .. sender .. ". No new entries.")
         end
