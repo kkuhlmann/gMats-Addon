@@ -10,6 +10,14 @@ local highlightCache = {}
 local bagUpdatePending = false
 local bagUpdateTimer = 0
 
+-- Bank / Guild Bank state
+local bankOpen = false
+local guildBankOpen = false
+local bankUpdatePending = false
+local bankUpdateTimer = 0
+local guildBankUpdatePending = false
+local guildBankUpdateTimer = 0
+
 -- ============ HIGHLIGHT TEXTURES ============
 
 -- Create 4 edge textures forming a purple border around a button
@@ -68,16 +76,9 @@ end
 
 -- ============ CORE LOGIC ============
 
-function BH:IsWantedByOthers(itemID)
+function BH:IsWanted(itemID)
     local entries = SC.DataModel:LookupItem(itemID)
-    if not entries or #entries == 0 then return false end
-    local myName = SC.Util.PlayerName()
-    for _, entry in ipairs(entries) do
-        if entry.poster ~= myName then
-            return true
-        end
-    end
-    return false
+    return entries and #entries > 0
 end
 
 function BH:UpdateHighlightsForContainer(containerFrame)
@@ -97,7 +98,7 @@ function BH:UpdateHighlightsForContainer(containerFrame)
             local link = GetContainerItemLink(bagID, bagSlot)
             if link then
                 local itemID = SC.Util.GetItemID(link)
-                if itemID and self:IsWantedByOthers(itemID) then
+                if itemID and self:IsWanted(itemID) then
                     ShowHighlight(button)
                 else
                     HideHighlight(button)
@@ -121,6 +122,80 @@ function BH:UpdateAllVisibleBags()
     end
 end
 
+-- ============ BANK / GUILD BANK ============
+
+function BH:UpdateBankMainSlots()
+    if not bankOpen then return end
+    if not gMatsDB or not gMatsDB.settings or not gMatsDB.settings.bagHighlightsEnabled then return end
+    if not BankFrame or not BankFrame:IsShown() then return end
+
+    for i = 1, 28 do
+        local button = _G["BankFrameItem" .. i]
+        if button then
+            local link = GetContainerItemLink(-1, i)
+            if link then
+                local itemID = SC.Util.GetItemID(link)
+                if itemID and self:IsWanted(itemID) then
+                    ShowHighlight(button)
+                else
+                    HideHighlight(button)
+                end
+            else
+                HideHighlight(button)
+            end
+        end
+    end
+end
+
+function BH:UpdateGuildBankSlots()
+    if not guildBankOpen then return end
+    if not gMatsDB or not gMatsDB.settings or not gMatsDB.settings.bagHighlightsEnabled then return end
+    if not GuildBankFrame or not GuildBankFrame:IsShown() then return end
+
+    local tab = GetCurrentGuildBankTab()
+    for col = 1, 7 do
+        for row = 1, 14 do
+            local button = _G["GuildBankColumn" .. col .. "Button" .. row]
+            if button then
+                local slot = (col - 1) * 14 + row
+                local link = GetGuildBankItemLink(tab, slot)
+                if link then
+                    local itemID = SC.Util.GetItemID(link)
+                    if itemID and self:IsWanted(itemID) then
+                        ShowHighlight(button)
+                    else
+                        HideHighlight(button)
+                    end
+                else
+                    HideHighlight(button)
+                end
+            end
+        end
+    end
+end
+
+function BH:ClearBankHighlights()
+    for i = 1, 28 do
+        local button = _G["BankFrameItem" .. i]
+        if button then HideHighlight(button) end
+    end
+end
+
+function BH:ClearGuildBankHighlights()
+    for col = 1, 7 do
+        for row = 1, 14 do
+            local button = _G["GuildBankColumn" .. col .. "Button" .. row]
+            if button then HideHighlight(button) end
+        end
+    end
+end
+
+function BH:UpdateAllVisible()
+    self:UpdateAllVisibleBags()
+    self:UpdateBankMainSlots()
+    self:UpdateGuildBankSlots()
+end
+
 function BH:ClearAllHighlights()
     for _, textures in pairs(highlightCache) do
         for _, tex in ipairs(textures) do
@@ -137,17 +212,22 @@ function BH:Init()
         BH:UpdateHighlightsForContainer(frame)
     end)
 
-    -- BAG_UPDATE with debounce to catch item count changes
+    -- Events with debounce
     local eventFrame = CreateFrame("Frame")
     eventFrame:RegisterEvent("BAG_UPDATE")
     eventFrame:RegisterEvent("BAG_CLOSED")
+    eventFrame:RegisterEvent("BANKFRAME_OPENED")
+    eventFrame:RegisterEvent("BANKFRAME_CLOSED")
+    eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+    eventFrame:RegisterEvent("GUILDBANKFRAME_OPENED")
+    eventFrame:RegisterEvent("GUILDBANKFRAME_CLOSED")
+    eventFrame:RegisterEvent("GUILDBANKBAGSLOTS_CHANGED")
 
     eventFrame:SetScript("OnEvent", function(_, event, arg1)
         if event == "BAG_UPDATE" then
             bagUpdatePending = true
             bagUpdateTimer = 0
         elseif event == "BAG_CLOSED" then
-            -- Clear highlights for the closed bag
             for i = 1, NUM_CONTAINER_FRAMES do
                 local frame = _G["ContainerFrame" .. i]
                 if frame and frame:GetID() == arg1 then
@@ -161,15 +241,69 @@ function BH:Init()
                     end
                 end
             end
+        elseif event == "BANKFRAME_OPENED" then
+            bankOpen = true
+            bankUpdatePending = true
+            bankUpdateTimer = 0
+        elseif event == "BANKFRAME_CLOSED" then
+            bankOpen = false
+            BH:ClearBankHighlights()
+        elseif event == "PLAYERBANKSLOTS_CHANGED" then
+            if bankOpen then
+                bankUpdatePending = true
+                bankUpdateTimer = 0
+            end
+        elseif event == "GUILDBANKFRAME_OPENED" then
+            guildBankOpen = true
+            guildBankUpdatePending = true
+            guildBankUpdateTimer = 0
+        elseif event == "GUILDBANKFRAME_CLOSED" then
+            guildBankOpen = false
+            BH:ClearGuildBankHighlights()
+        elseif event == "GUILDBANKBAGSLOTS_CHANGED" then
+            if guildBankOpen then
+                guildBankUpdatePending = true
+                guildBankUpdateTimer = 0
+            end
         end
     end)
 
     eventFrame:SetScript("OnUpdate", function(_, elapsed)
-        if not bagUpdatePending then return end
-        bagUpdateTimer = bagUpdateTimer + elapsed
-        if bagUpdateTimer < 0.1 then return end
-        bagUpdatePending = false
-        bagUpdateTimer = 0
-        BH:UpdateAllVisibleBags()
+        if bagUpdatePending then
+            bagUpdateTimer = bagUpdateTimer + elapsed
+            if bagUpdateTimer >= 0.1 then
+                bagUpdatePending = false
+                bagUpdateTimer = 0
+                BH:UpdateAllVisibleBags()
+            end
+        end
+        if bankUpdatePending then
+            bankUpdateTimer = bankUpdateTimer + elapsed
+            if bankUpdateTimer >= 0.1 then
+                bankUpdatePending = false
+                bankUpdateTimer = 0
+                BH:UpdateBankMainSlots()
+            end
+        end
+        if guildBankUpdatePending then
+            guildBankUpdateTimer = guildBankUpdateTimer + elapsed
+            if guildBankUpdateTimer >= 0.1 then
+                guildBankUpdatePending = false
+                guildBankUpdateTimer = 0
+                BH:UpdateGuildBankSlots()
+            end
+        end
     end)
+
+    -- Hook Blizzard bank/guild bank update functions
+    if BankFrame_UpdateSlots then
+        hooksecurefunc("BankFrame_UpdateSlots", function()
+            BH:UpdateBankMainSlots()
+        end)
+    end
+    if GuildBankFrame_Update then
+        hooksecurefunc("GuildBankFrame_Update", function()
+            BH:UpdateGuildBankSlots()
+        end)
+    end
 end

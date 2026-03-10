@@ -91,7 +91,7 @@ SlashCmdList["GMATS"] = function(msg)
         gMatsDB.settings.bagHighlightsEnabled = not gMatsDB.settings.bagHighlightsEnabled
         SC:Print("Bag highlights " .. (gMatsDB.settings.bagHighlightsEnabled and "enabled" or "disabled"))
         if gMatsDB.settings.bagHighlightsEnabled then
-            SC.BagHighlight:UpdateAllVisibleBags()
+            SC.BagHighlight:UpdateAllVisible()
         else
             SC.BagHighlight:ClearAllHighlights()
         end
