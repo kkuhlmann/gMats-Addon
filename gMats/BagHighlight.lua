@@ -76,16 +76,9 @@ end
 
 -- ============ CORE LOGIC ============
 
-function BH:IsWantedByOthers(itemID)
+function BH:IsWanted(itemID)
     local entries = SC.DataModel:LookupItem(itemID)
-    if not entries or #entries == 0 then return false end
-    local myName = SC.Util.PlayerName()
-    for _, entry in ipairs(entries) do
-        if entry.poster ~= myName then
-            return true
-        end
-    end
-    return false
+    return entries and #entries > 0
 end
 
 function BH:UpdateHighlightsForContainer(containerFrame)
@@ -105,7 +98,7 @@ function BH:UpdateHighlightsForContainer(containerFrame)
             local link = GetContainerItemLink(bagID, bagSlot)
             if link then
                 local itemID = SC.Util.GetItemID(link)
-                if itemID and self:IsWantedByOthers(itemID) then
+                if itemID and self:IsWanted(itemID) then
                     ShowHighlight(button)
                 else
                     HideHighlight(button)
@@ -142,7 +135,7 @@ function BH:UpdateBankMainSlots()
             local link = GetContainerItemLink(-1, i)
             if link then
                 local itemID = SC.Util.GetItemID(link)
-                if itemID and self:IsWantedByOthers(itemID) then
+                if itemID and self:IsWanted(itemID) then
                     ShowHighlight(button)
                 else
                     HideHighlight(button)
@@ -168,7 +161,7 @@ function BH:UpdateGuildBankSlots()
                 local link = GetGuildBankItemLink(tab, slot)
                 if link then
                     local itemID = SC.Util.GetItemID(link)
-                    if itemID and self:IsWantedByOthers(itemID) then
+                    if itemID and self:IsWanted(itemID) then
                         ShowHighlight(button)
                     else
                         HideHighlight(button)
