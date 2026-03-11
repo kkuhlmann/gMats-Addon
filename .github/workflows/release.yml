@@ -31,6 +31,11 @@ jobs:
           files: gMats-${{ steps.version.outputs.version }}.zip
           generate_release_notes: true
 
+      - name: Delete previous latest release
+        run: gh release delete latest --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update latest release
         uses: softprops/action-gh-release@v2
         with:

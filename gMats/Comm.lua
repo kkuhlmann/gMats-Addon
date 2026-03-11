@@ -19,6 +19,12 @@ local throttleFrame = nil
 local chunkBuffers = {}
 local syncReceivedCount = 0
 
+local function SyncLog(msg)
+    if gMatsDB and gMatsDB.settings and gMatsDB.settings.syncLogsEnabled then
+        SC:Print(msg)
+    end
+end
+
 function Comm:Init()
     if RegisterAddonMessagePrefix then
         RegisterAddonMessagePrefix(ADDON_PREFIX)
@@ -374,6 +380,7 @@ end
 
 function Comm:HandleSyncReq(parts, sender)
     -- Someone wants the full board. Send all entries.
+    SyncLog("Sending board data to " .. sender .. "...")
     for _, req in pairs(gMatsDB.board) do
         self:SendSyncData(req)
     end
@@ -428,11 +435,12 @@ function Comm:HandleSyncData(parts, sender)
     if req then
         SC.DataModel:MergeRequest(req)
         syncReceivedCount = syncReceivedCount + 1
+        SyncLog("Received sync entry from " .. sender .. " (" .. syncReceivedCount .. ")")
     end
 end
 
 -- Request sync on login (called from Core after delay)
 function Comm:RequestSync()
+    SyncLog("Requesting board sync from guild...")
     self:SendSyncReq()
-    SC:Print("Requesting board sync from guild...")
 end

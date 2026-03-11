@@ -23,6 +23,7 @@ function DM:Init()
             alertsEnabled = true,
             tooltipsEnabled = true,
             bagHighlightsEnabled = true,
+            syncLogsEnabled = false,
         }
     end
     if not gMatsDB.removedIDs then
