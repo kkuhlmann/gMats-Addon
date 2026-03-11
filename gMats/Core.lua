@@ -35,7 +35,8 @@ end)
 function SC:OnAddonLoaded()
     SC.DataModel:Init()
     SC.Comm:Init()
-    SC:Print("v1.0 loaded. Type /gmat to open the guild bounty board.")
+    local version = GetAddOnMetadata("gMats", "Version") or "unknown"
+    SC:Print("v" .. version .. " loaded. Type /gmat to open the guild bounty board.")
 end
 
 function SC:OnPlayerLogin()
@@ -81,6 +82,7 @@ SlashCmdList["GMATS"] = function(msg)
         SC:Print("Tooltips: " .. (gMatsDB.settings.tooltipsEnabled and "ON" or "OFF"))
         SC:Print("Alerts: " .. (gMatsDB.settings.alertsEnabled and "ON" or "OFF"))
         SC:Print("Bag highlights: " .. (gMatsDB.settings.bagHighlightsEnabled and "ON" or "OFF"))
+        SC:Print("Sync logs: " .. (gMatsDB.settings.syncLogsEnabled and "ON" or "OFF"))
     elseif msg == "tooltips" then
         gMatsDB.settings.tooltipsEnabled = not gMatsDB.settings.tooltipsEnabled
         SC:Print("Tooltips " .. (gMatsDB.settings.tooltipsEnabled and "enabled" or "disabled"))
@@ -95,6 +97,9 @@ SlashCmdList["GMATS"] = function(msg)
         else
             SC.BagHighlight:ClearAllHighlights()
         end
+    elseif msg == "synclogs" then
+        gMatsDB.settings.syncLogsEnabled = not gMatsDB.settings.syncLogsEnabled
+        SC:Print("Sync logs " .. (gMatsDB.settings.syncLogsEnabled and "enabled" or "disabled"))
     elseif msg == "sync" then
         SC.Comm:RequestSync()
     elseif msg == "help" then
@@ -104,6 +109,7 @@ SlashCmdList["GMATS"] = function(msg)
         SC:Print("  /gmat tooltips - Toggle tooltip notifications")
         SC:Print("  /gmat alerts - Toggle loot alert notifications")
         SC:Print("  /gmat highlights - Toggle bag item highlights")
+        SC:Print("  /gmat synclogs - Toggle sync log messages")
         SC:Print("  /gmat sync - Force board sync from guild")
         SC:Print("  /gmat help - Show this help")
     else
