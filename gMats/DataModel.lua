@@ -44,7 +44,7 @@ end
 function DM:RebuildIndex()
     wipe(self.itemIndex)
     for reqID, req in pairs(gMatsDB.board) do
-        if not req.removed and not req.fulfilled then
+        if not req.removed then
             self:IndexRequest(req)
         end
     end
@@ -52,7 +52,6 @@ end
 
 -- Add a single request's items to the index
 function DM:IndexRequest(req)
-    if req.fulfilled then return end -- fulfilled items don't appear in tooltip/loot-alert
     local items = req.items
     if req.requestType == "craft" then
         items = req.matsNeeded
@@ -161,9 +160,7 @@ function DM:MergeRequest(req)
         if req.timestamp > existing.timestamp then
             self:UnindexRequest(existing)
             gMatsDB.board[req.requestID] = req
-            if not req.fulfilled then
-                self:IndexRequest(req)
-            end
+            self:IndexRequest(req)
         end
     else
         -- Check removal digest before accepting (prevents resurrection after tombstone GC)
@@ -171,9 +168,7 @@ function DM:MergeRequest(req)
             return
         end
         gMatsDB.board[req.requestID] = req
-        if not req.fulfilled then
-            self:IndexRequest(req)
-        end
+        self:IndexRequest(req)
     end
 end
 
@@ -200,7 +195,7 @@ function DM:UpdateItemCounts(requestID, sendAmounts)
         end
     end
 
-    -- Check if all counts are zero -> fulfilled
+    -- If all counts are zero the request is fulfilled, so remove it
     local allZero = true
     for _, item in ipairs(items) do
         if (item.count or 0) > 0 then
@@ -209,12 +204,13 @@ function DM:UpdateItemCounts(requestID, sendAmounts)
         end
     end
     if allZero then
-        req.fulfilled = true
-        req.fulfilledAt = time()
+        self:RemoveRequest(requestID)
+        return true
     end
 
     req.timestamp = time()
     self:IndexRequest(req)
+    return false
 end
 
 -- Get all active (non-removed) requests as a sorted list

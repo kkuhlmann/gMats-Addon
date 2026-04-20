@@ -390,9 +390,11 @@ end
 function MI:OnMailSent()
     if not pendingRequest or not pendingSendAmounts then return end
 
-    SC.DataModel:UpdateItemCounts(pendingRequest.requestID, pendingSendAmounts)
+    local removed = SC.DataModel:UpdateItemCounts(pendingRequest.requestID, pendingSendAmounts)
     local req = SC.DataModel:GetRequest(pendingRequest.requestID)
-    if req then
+    if removed then
+        SC.Comm:SendRemove(pendingRequest.requestID, pendingRequest.poster, req and req.removedAt or time())
+    elseif req then
         SC.Comm:SendUpdate(req)
     end
 
@@ -401,7 +403,8 @@ function MI:OnMailSent()
     for _, sa in ipairs(pendingSendAmounts) do
         parts[#parts + 1] = (sa.itemName or "items") .. " x" .. sa.sendCount
     end
-    SC:Print("Sent " .. table.concat(parts, ", ") .. " to " .. pendingRequest.poster .. "! Counts updated.")
+    local tail = removed and "! Request complete and removed from board." or "! Counts updated."
+    SC:Print("Sent " .. table.concat(parts, ", ") .. " to " .. pendingRequest.poster .. tail)
 
     pendingRequest = nil
     pendingSendAmounts = nil

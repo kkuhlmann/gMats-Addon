@@ -308,12 +308,6 @@ function BB:PopulateRow(row, req, showRemove)
         end
     end
 
-    -- Fulfilled badge override
-    if req.fulfilled then
-        row.typeBadge:SetText("FULFILLED")
-        row.typeBadge:SetTextColor(0.2, 1.0, 0.2)
-    end
-
     -- Remove button
     if showRemove then
         row.removeBtn:Show()
@@ -328,7 +322,6 @@ function BB:PopulateRow(row, req, showRemove)
     local showMail = not showRemove
         and SC.UI.MailIntegration and SC.UI.MailIntegration:IsMailboxOpen()
         and req.poster ~= SC.Util.PlayerName()
-        and not req.fulfilled
     if showMail then
         row.mailBtn:Show()
         row.mailBtn:SetScript("OnClick", function()

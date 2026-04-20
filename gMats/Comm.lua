@@ -140,7 +140,7 @@ function Comm:SendRemove(requestID, poster, removedAt)
     self:QueueSend(msg)
 end
 
--- UPDATE|requestID|poster|timestamp|items[|fulfilled|fulfilledAt]
+-- UPDATE|requestID|poster|timestamp|items
 function Comm:SendUpdate(req)
     local items = req.items
     if req.requestType == "craft" then
@@ -148,9 +148,6 @@ function Comm:SendUpdate(req)
     end
     local msg = "UPDATE|" .. req.requestID .. "|" .. req.poster .. "|" .. req.timestamp
         .. "|" .. SerializeItems(items)
-    if req.fulfilled then
-        msg = msg .. "|fulfilled|" .. (req.fulfilledAt or 0)
-    end
     self:QueueSend(msg)
 end
 
@@ -169,8 +166,6 @@ function Comm:SendSyncData(req)
             .. "|" .. SerializeItems(req.matsNeeded) .. "|" .. (req.note or "")
         if req.removed then
             msg = msg .. "|removed|" .. (req.removedAt or 0)
-        elseif req.fulfilled then
-            msg = msg .. "|fulfilled|" .. (req.fulfilledAt or 0)
         end
         self:QueueSend(msg)
     else
@@ -178,8 +173,6 @@ function Comm:SendSyncData(req)
             .. "|" .. SerializeItems(req.items) .. "|" .. (req.note or "")
         if req.removed then
             msg = msg .. "|removed|" .. (req.removedAt or 0)
-        elseif req.fulfilled then
-            msg = msg .. "|fulfilled|" .. (req.fulfilledAt or 0)
         end
         self:QueueSend(msg)
     end
@@ -252,9 +245,9 @@ function Comm:HandleMessage(message, sender)
         self:HandleSyncData(parts, sender)
     elseif opcode == "SYNCEND" then
         if syncReceivedCount > 0 then
-            SC:Print("Board sync complete with " .. sender .. ".")
+            SyncLog("Board sync complete with " .. sender .. ".")
         else
-            SC:Print("Board sync complete from " .. sender .. ". No new entries.")
+            SyncLog("Board sync complete from " .. sender .. ". No new entries.")
         end
         syncReceivedCount = 0
         if SC.UI and SC.UI.BrowseBoard then
@@ -333,7 +326,7 @@ function Comm:HandleRemove(parts, sender)
 end
 
 function Comm:HandleUpdate(parts, sender)
-    -- UPDATE|requestID|poster|timestamp|items[|fulfilled|fulfilledAt]
+    -- UPDATE|requestID|poster|timestamp|items (legacy peers may append |fulfilled|ts)
     local requestID = parts[2]
     local poster = parts[3] or sender
     local timestamp = tonumber(parts[4]) or 0
@@ -364,10 +357,9 @@ function Comm:HandleUpdate(parts, sender)
         end
         existing.timestamp = timestamp
         if parts[6] == "fulfilled" then
-            existing.fulfilled = true
-            existing.fulfilledAt = tonumber(parts[7]) or time()
-        end
-        if not existing.fulfilled then
+            -- Legacy peers still send the fulfilled flag; treat it as a removal.
+            SC.DataModel:RemoveRequest(requestID)
+        else
             SC.DataModel:IndexRequest(existing)
         end
     end
@@ -406,8 +398,9 @@ function Comm:HandleSyncData(parts, sender)
             req.removed = true
             req.removedAt = tonumber(parts[9]) or time()
         elseif parts[8] == "fulfilled" then
-            req.fulfilled = true
-            req.fulfilledAt = tonumber(parts[9]) or 0
+            -- Legacy peers: fulfilled is now modelled as removal.
+            req.removed = true
+            req.removedAt = tonumber(parts[9]) or time()
         end
     elseif reqType == "craft" then
         -- SYNCDATA|craft|requestID|poster|timestamp|craftedItemID|craftedItemName|recipeName|matsProvided|matsNeeded|note[|removed|removedAt]
@@ -427,8 +420,9 @@ function Comm:HandleSyncData(parts, sender)
             req.removed = true
             req.removedAt = tonumber(parts[13]) or time()
         elseif parts[12] == "fulfilled" then
-            req.fulfilled = true
-            req.fulfilledAt = tonumber(parts[13]) or 0
+            -- Legacy peers: fulfilled is now modelled as removal.
+            req.removed = true
+            req.removedAt = tonumber(parts[13]) or time()
         end
     end
 
