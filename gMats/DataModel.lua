@@ -169,6 +169,7 @@ function DM:MergeRequest(req)
         end
         gMatsDB.board[req.requestID] = req
         self:IndexRequest(req)
+        return true -- genuinely new request (not a duplicate/update)
     end
 end
 
