@@ -244,11 +244,6 @@ function Comm:HandleMessage(message, sender)
     elseif opcode == "SYNCDATA" then
         self:HandleSyncData(parts, sender)
     elseif opcode == "SYNCEND" then
-        if syncReceivedCount > 0 then
-            SyncLog("Board sync complete with " .. sender .. ".")
-        else
-            SyncLog("Board sync complete from " .. sender .. ". No new entries.")
-        end
         syncReceivedCount = 0
         if SC.UI and SC.UI.BrowseBoard then
             SC.UI.BrowseBoard:Refresh()
@@ -267,12 +262,14 @@ function Comm:HandleAdd(parts, sender)
         items = DeserializeItems(parts[5]),
         note = parts[6] or "",
     }
-    SC.DataModel:MergeRequest(req)
+    local isNew = SC.DataModel:MergeRequest(req)
     if SC.UI and SC.UI.BrowseBoard then
         SC.UI.BrowseBoard:Refresh()
     end
     if SC.BagHighlight then SC.BagHighlight:UpdateAllVisibleBags() end
-    SC:Print(req.poster .. " posted a material request!")
+    if isNew then
+        SC:Print(req.poster .. " posted a material request!")
+    end
 end
 
 function Comm:HandleCraft(parts, sender)
@@ -289,13 +286,15 @@ function Comm:HandleCraft(parts, sender)
         matsNeeded = DeserializeItems(parts[9]),
         note = parts[10] or "",
     }
-    SC.DataModel:MergeRequest(req)
+    local isNew = SC.DataModel:MergeRequest(req)
     if SC.UI and SC.UI.BrowseBoard then
         SC.UI.BrowseBoard:Refresh()
     end
     if SC.BagHighlight then SC.BagHighlight:UpdateAllVisibleBags() end
-    local displayName = (req.craftedItemName and req.craftedItemName ~= "") and req.craftedItemName or req.recipeName
-    SC:Print(req.poster .. " posted a crafting request for " .. (displayName or "a recipe") .. "!")
+    if isNew then
+        local displayName = (req.craftedItemName and req.craftedItemName ~= "") and req.craftedItemName or req.recipeName
+        SC:Print(req.poster .. " posted a crafting request for " .. (displayName or "a recipe") .. "!")
+    end
 end
 
 function Comm:HandleRemove(parts, sender)
